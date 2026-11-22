@@ -2,6 +2,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from grades import gpa_points, subject_average, weighted_gpa
+
 st.title("Student Grade Calculator")
 
 if "subjects" not in st.session_state:
@@ -30,17 +32,8 @@ else:
 st.header("Results")
 rows = []
 for subject_name, data in subjects.items():
-    avg = sum(data["grades"]) / len(data["grades"])
-    if avg >= 90:
-        points = 4.0
-    elif avg >= 80:
-        points = 3.0
-    elif avg >= 70:
-        points = 2.0
-    elif avg >= 60:
-        points = 1.0
-    else:
-        points = 0.0
+    avg = subject_average(data["grades"])
+    points = gpa_points(avg)
     rows.append(
         {
             "Subject": subject_name,
@@ -54,8 +47,7 @@ if rows:
     df = pd.DataFrame(rows)
     st.dataframe(df)
 
-    total_credits = sum(r["Credits"] for r in rows)
-    gpa = sum(r["GPA points"] * r["Credits"] for r in rows) / total_credits
+    gpa = weighted_gpa([(r["GPA points"], r["Credits"]) for r in rows])
     st.metric("GPA (4.0 scale)", round(gpa, 2))
 
     # ---- Charts ----
