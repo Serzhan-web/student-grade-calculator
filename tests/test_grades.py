@@ -1,6 +1,5 @@
-import pytest
 import grades
-
+import pytest
 from grades import gpa_points, subject_average, weighted_gpa
 
 
