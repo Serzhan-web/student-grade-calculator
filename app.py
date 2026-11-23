@@ -2,7 +2,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from grades import gpa_points, subject_average, weighted_gpa
+from grades import (
+    gpa_points,
+    subject_average,
+    validate_grade,
+    validate_subject,
+    weighted_gpa,
+)
 
 st.title("Student Grade Calculator")
 
@@ -14,25 +20,37 @@ subjects = st.session_state.subjects
 # ---- Add subject ----
 st.header("Add subject")
 name = st.text_input("Subject name")
-credits = st.number_input("Credits", value=3)
+credits = st.number_input("Credits", min_value=1, value=3)
 if st.button("Add subject"):
-    subjects[name] = {"credits": credits, "grades": []}
+    error = validate_subject(name, credits)
+    if error:
+        st.error(error)
+    else:
+        subjects[name] = {"credits": credits, "grades": []}
 
 # ---- Add grade ----
 st.header("Add grade")
 if subjects:
     subject = st.selectbox("Subject", list(subjects.keys()))
-    grade = st.number_input("Grade (0-100)", value=0.0)
+    grade = st.number_input("Grade (0-100)", min_value=0.0, max_value=100.0, value=0.0)
     if st.button("Add grade"):
-        subjects[subject]["grades"].append(grade)
+        error = validate_grade(grade)
+        if error:
+            st.error(error)
+        else:
+            subjects[subject]["grades"].append(grade)
 else:
     st.info("Add a subject first.")
 
 # ---- Results ----
 st.header("Results")
 rows = []
+no_grades = []
 for subject_name, data in subjects.items():
     avg = subject_average(data["grades"])
+    if avg is None:
+        no_grades.append(subject_name)
+        continue
     points = gpa_points(avg)
     rows.append(
         {
@@ -43,12 +61,18 @@ for subject_name, data in subjects.items():
         }
     )
 
+if no_grades:
+    st.info("No grades yet: " + ", ".join(no_grades))
+
 if rows:
     df = pd.DataFrame(rows)
     st.dataframe(df)
 
     gpa = weighted_gpa([(r["GPA points"], r["Credits"]) for r in rows])
-    st.metric("GPA (4.0 scale)", round(gpa, 2))
+    if gpa is None:
+        st.info("GPA cannot be calculated: total credits must be greater than 0.")
+    else:
+        st.metric("GPA (4.0 scale)", round(gpa, 2))
 
     # ---- Charts ----
     st.header("Performance")
